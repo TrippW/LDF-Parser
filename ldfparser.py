@@ -55,8 +55,8 @@ class LDFParser:
     def _parse_file(self):
         """parses the text from the ldf into nodes, signals, frames, and attributes"""
         self._parse_nodes(*self._find_ends('Nodes'))
-        self._parse_all_signals(*self._find_ends('Signals'))
         self._parse_all_frames(*self._find_ends('Frames'))
+        self._parse_all_signals(*self._find_ends('Signals'))
         self._parse_all_attributes(*self._find_ends('Node_attributes'))
         self.parsed = True
         del self.all_text
@@ -119,13 +119,14 @@ class LDFParser:
 
         #find the encoding and add it to each signal
         ed_start, ed_end = self._find_ends('Signal_encoding_types')
-        encoding_data_text = self.all_text[ed_start:ed_end].replace('\n', '').replace(' ', '')
+        encoding_data_text = self.all_text[ed_start:ed_end].replace('\n', '')
         ed_end -= ed_start
         ed_start = 0
 
         #so long as there are encodings left, we look through them
         while ed_start not in (ed_end, -1):
             name = encoding_data_text[ed_start:encoding_data_text.find('{', ed_start)]
+            name = name.replace(' ', '')
             #make sure the name isn't empty so we don't try to find an empty string
             if name:
                 ed_start, _end = self._find_ends(name, encoding_data_text)
@@ -133,6 +134,10 @@ class LDFParser:
                 if name in encoding_link.keys():
                     self.signals[encoding_link[name]]['encoding'] = self._parse_encoding(\
                         encoding_data_text[ed_start:_end])
+                    for key in self.frames.keys():
+                        if encoding_link[name] in self.frames[key]['signals'].keys():
+                               self.frames[key]['signals'][encoding_link[name]]['encoding'] = \
+                                                self.signals[encoding_link[name]]['encoding']
                 ed_start = _end+1
             else:
                 break
@@ -144,17 +149,17 @@ class LDFParser:
         if the value is logical, we record each numeric value and what
         it represents
         """
-        lines = text.replace(' ', '').split(';')
+        lines = text.split(';')
         raw = {}
         if 'logical_value' in lines[0]:
             raw['type'] = 'logical'
             for line in lines:
-                if line:
-                    value, data = line.split(',')[1:2]
-                    raw[data.replace('"', '').replace("'", '')] = int(value)
+                if line.replace(' ', ''):
+                    value, data = line.split(',')[1:3]
+                    raw[int(value)] = data.replace('"', '').replace("'", '').strip()
         else:
             raw['type'] = 'physical'
-            raw['min'], raw['max'] = map(int, lines[0].split(',')[1:2])
+            raw['min'], raw['max'] = map(int, lines[0].split(',')[1:3])
         return raw
 
     def _parse_signal(self, signal):
@@ -169,6 +174,12 @@ class LDFParser:
         raw['publisher'] = data[2]
         raw['init'] = int(data[1])
         raw['size'] = int(data[0])
+        for key in self.frames.keys():
+            if name in self.frames[key]['signals'].keys():
+                #our signal is in this frame, so update its data
+                self.frames[key]['signals'][name]['init_value'] = raw['init']
+                self.frames[key]['signals'][name]['size'] = raw['size']
+                
         self.signals[name] = raw
 
     def _parse_all_frames(self, start, end):
@@ -193,7 +204,7 @@ class LDFParser:
         for signal in signals:
             if signal:
                 data = signal.split(',')
-                raw['signals'][data[0]] = int(data[1])
+                raw['signals'][data[0]] = {'offset':int(data[1])}
         self.frames[name] = raw
 
     def _parse_all_attributes(self, start, end):
@@ -277,3 +288,7 @@ class LDFParser:
             "frames" : self.frames,
             "signals" : self.signals}
         return data
+
+path = r'C:\CVS_Local\P17G3502_GM_E2UX_LIN_EPB\Software\Requirements\Customer_Specifications\GM_Documents\NCF\GB_133_EPB_EBCM_LIN1_connector.ldf'
+parser = LDFParser(path)
+print(parser.get_all())
