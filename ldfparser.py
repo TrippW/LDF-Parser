@@ -294,6 +294,7 @@ class LDFParser:
             "signals" : self.signals}
         return data
 
-path = r'C:\CVS_Local\P17G3502_GM_E2UX_LIN_EPB\Software\Requirements\Customer_Specifications\GM_Documents\NCF\GB_133_EPB_EBCM_LIN1_connector.ldf'
-parser = LDFParser(path)
-print(parser.get_all())
+if __name__=='__main__':
+    path = r'C:\example_file_here.ldf'
+    parser = LDFParser(path)
+    print(parser.get_all())
