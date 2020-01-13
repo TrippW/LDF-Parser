@@ -156,7 +156,7 @@ class LDFParser:
             for line in lines:
                 if line.replace(' ', ''):
                     value, data = line.split(',')[1:3]
-                    raw[int(value)] = data.replace('"', '').replace("'", '').strip()
+                    raw[int(value, 0)] = data.replace('"', '').replace("'", '').strip()
         else:
             raw['type'] = 'physical'
             raw['min'], raw['max'] = map(int, lines[0].split(',')[1:3])
@@ -172,8 +172,8 @@ class LDFParser:
             #includes subscriber
             raw['subscriber'] = [*data[3:]]
         raw['publisher'] = data[2]
-        raw['init'] = int(data[1])
-        raw['size'] = int(data[0])
+        raw['init'] = int(data[1], 0)
+        raw['size'] = int(data[0], 0)
         for key in self.frames.keys():
             if name in self.frames[key]['signals'].keys():
                 #our signal is in this frame, so update its data
@@ -196,15 +196,15 @@ class LDFParser:
         raw = {}
         name, frame_header = frame_data.split(':')
         data = frame_header.split(',')
-        raw['id'] = int(data[0])
+        raw['id'] = int(data[0], 0)
         raw['publisher'] = data[1]
-        raw['len'] = int(data[2])
+        raw['len'] = int(data[2], 0)
         signals = signals.split(";")
         raw['signals'] = {}
         for signal in signals:
             if signal:
                 data = signal.split(',')
-                raw['signals'][data[0]] = {'offset':int(data[1])}
+                raw['signals'][data[0]] = {'offset':int(data[1], 0)}
         self.frames[name] = raw
 
     def _parse_all_attributes(self, start, end):
