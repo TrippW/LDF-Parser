@@ -113,7 +113,7 @@ class LDFParser:
                              .replace(' ', '').replace('\n', '').split(';')
         encoding_link = {}
         for element in encoding_link_list:
-            if element:
+            if element.strip():
                 data = element.split(':')
                 encoding_link[data[0]] = data[1]
 
@@ -126,7 +126,7 @@ class LDFParser:
         #so long as there are encodings left, we look through them
         while ed_start not in (ed_end, -1):
             name = encoding_data_text[ed_start:encoding_data_text.find('{', ed_start)]
-            name = name.replace(' ', '')
+            name = name.strip().replace(' ', '')
             #make sure the name isn't empty so we don't try to find an empty string
             if name:
                 ed_start, _end = self._find_ends(name, encoding_data_text)
@@ -154,9 +154,9 @@ class LDFParser:
         if 'logical_value' in lines[0]:
             raw['type'] = 'logical'
             for line in lines:
-                if line.replace(' ', ''):
+                if line.strip():
                     value, data = line.split(',')[1:3]
-                    raw[int(value)] = data.replace('"', '').replace("'", '').strip()
+                    raw[int(value, 0)] = data.replace('"', '').replace("'", '').strip()
         else:
             raw['type'] = 'physical'
             raw['min'], raw['max'] = map(int, lines[0].split(',')[1:3])
@@ -172,8 +172,8 @@ class LDFParser:
             #includes subscriber
             raw['subscriber'] = [*data[3:]]
         raw['publisher'] = data[2]
-        raw['init'] = int(data[1])
-        raw['size'] = int(data[0])
+        raw['init'] = int(data[1], 0)
+        raw['size'] = int(data[0], 0)
         for key in self.frames.keys():
             if name in self.frames[key]['signals'].keys():
                 #our signal is in this frame, so update its data
@@ -187,7 +187,7 @@ class LDFParser:
         frames = self.all_text[start:end].replace('\n', '').split('}')
         frames = trim(frames)
         for frame in frames:
-            if frame:
+            if frame.strip():
                 self._parse_frame(frame)
 
     def _parse_frame(self, frame):
@@ -196,15 +196,15 @@ class LDFParser:
         raw = {}
         name, frame_header = frame_data.split(':')
         data = frame_header.split(',')
-        raw['id'] = int(data[0])
+        raw['id'] = int(data[0], 0)
         raw['publisher'] = data[1]
-        raw['len'] = int(data[2])
+        raw['len'] = int(data[2], 0)
         signals = signals.split(";")
         raw['signals'] = {}
         for signal in signals:
-            if signal:
+            if signal.strip():
                 data = signal.split(',')
-                raw['signals'][data[0]] = {'offset':int(data[1])}
+                raw['signals'][data[0]] = {'offset':int(data[1], 0)}
         self.frames[name] = raw
 
     def _parse_all_attributes(self, start, end):
@@ -227,7 +227,7 @@ class LDFParser:
         attributes = attributes.replace(attributes[attributes.find('configurable'):end+1], '')
         data = attributes.split(';')
         for line in data:
-            if line:
+            if line.strip():
                 name, value = line.split('=')
                 if name.lower() == 'product_id':
                     value = value.split(',')
@@ -236,9 +236,14 @@ class LDFParser:
         raw['configurable_frames'] = {}
 
         for frame in config_frames:
-            if frame:
-                name, _id = frame.split('=')
-                raw['configurable_frames'][name] = _id
+            if frame.strip():
+                if len(frame.split('=')) == 2:
+                    #LIN 2.0
+                    name, _id = frame.split('=')
+                    raw['configurable_frames'][name] = _id
+                else:
+                    #LIN 2.1>
+                    raw['configurable_frames'][name] = ""
 
         return raw
 
