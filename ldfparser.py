@@ -1,5 +1,6 @@
 """This file is intended to parse an LDF into its components"""
 import os
+import re
 
 def trim(data):
     """removes spaces from a list"""
@@ -79,8 +80,6 @@ class LDFParser:
             if(end == -1) or (end == len(text)):
                 break
         return (start, end)
-
-
 
     def _parse_nodes(self, start, end):
         """parses the nodes into master and slaves"""
@@ -164,23 +163,32 @@ class LDFParser:
 
     def _parse_signal(self, signal):
         """parse the signals into name, size, init value, publisher and subscribers if supplied"""
-        data = signal.split(':')
-        name = data[0]
-        data = data[1].split(',')
-        raw = {}
-        if len(data) >= 4:
-            #includes subscriber
-            raw['subscriber'] = [*data[3:]]
-        raw['publisher'] = data[2]
-        raw['init'] = int(data[1], 0)
-        raw['size'] = int(data[0], 0)
-        for key in self.frames.keys():
-            if name in self.frames[key]['signals'].keys():
-                #our signal is in this frame, so update its data
-                self.frames[key]['signals'][name]['init_value'] = raw['init']
-                self.frames[key]['signals'][name]['size'] = raw['size']
-                
-        self.signals[name] = raw
+        regex = re.compile(r"\s*(\w+)\s*:\s*([1-9]\d?)\s*,\s*({.+}|-?\d+|0[xX][0-9a-fA-F]+)\s*,\s*(\w+)\s*(?:$|\s*,(\w+))")
+        m = regex.match(signal)
+        if m and len(m.groups()) in [4, 5]:
+            groups = m.groups()
+            name = groups[0]
+            raw = {}
+            raw['size'] = int(groups[1], 0)
+            raw['publisher'] = groups[3]
+            raw['subscriber'] = groups[4] if len(groups) == 5 else ""
+            init = groups[2]
+            if init[0] == '{' and init[-1] == '}':
+                raw['init'] = [int(v, 0) for v in init[1:-1].split(',')]
+                pass
+            else:
+                raw['init'] = int(init, 0)
+
+            for key in self.frames.keys():
+                if name in self.frames[key]['signals'].keys():
+                    #our signal is in this frame, so update its data
+                    self.frames[key]['signals'][name]['init_value'] = raw['init']
+                    self.frames[key]['signals'][name]['size'] = raw['size']
+                    
+            self.signals[name] = raw
+        else:
+            # invalid signal
+            pass
 
     def _parse_all_frames(self, start, end):
         """initiates the parsing of all frames"""
@@ -293,7 +301,7 @@ class LDFParser:
             "frames" : self.frames,
             "signals" : self.signals}
         return data
-
+    
 if __name__=='__main__':
     path = r'C:\example_file_here.ldf'
     parser = LDFParser(path)
