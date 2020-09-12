@@ -251,7 +251,7 @@ class LDFParser:
                     raw['configurable_frames'][name] = _id
                 else:
                     #LIN 2.1>
-                    raw['configurable_frames'][name] = ""
+                    raw['configurable_frames'][frame.strip()] = ""
 
         return raw
 
